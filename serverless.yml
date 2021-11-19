@@ -1,0 +1,61 @@
+service: note
+
+frameworkVersion: ">=1.1.0"
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: ap-southeast-1
+  lambdaHashingVersion: 20201221
+  environment:
+    NOTE_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: "*"
+functions:
+  noteCreation:
+    handler: api/notes.create
+    memorySize: 128
+    description: Create a note.
+    events:
+      - http:
+          path: notes
+          method: post
+  listNotes:
+    handler: api/notes.list
+    memorySize: 128
+    description: List all notes
+    events:
+      - http:
+          path: notes
+          method: get
+  noteDetails:
+    handler: api/notes.get
+    events:
+      - http:
+          path: notes/{id}
+          method: get
+resources:
+  Resources:
+    NotesDynamoDbTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: "id"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "id"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        StreamSpecification:
+          StreamViewType: "NEW_AND_OLD_IMAGES"
+        TableName: ${self:provider.environment.NOTE_TABLE}
